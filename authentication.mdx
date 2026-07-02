@@ -1,0 +1,52 @@
+---
+title: "Authentication"
+description: "Authenticate with a Personal Access Token and the x-customer-id header."
+---
+
+Requests are authenticated with two headers:
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer mega_<token>` — your Personal Access Token (PAT). |
+| `x-customer-id` | The UUID of the customer the request acts on. |
+
+```bash
+curl https://app.gomega.ai/api/agents/crm/leads \
+  -H "Authorization: Bearer mega_1a2b3c...." \
+  -H "x-customer-id: 00000000-0000-0000-0000-000000000000"
+```
+
+## How to get a key
+
+Keys are **issued by MEGA and delivered to you securely** — there is no self-serve key portal. To request one, **contact your MEGA account manager** (or email [support@gomega.ai](mailto:support@gomega.ai)).
+
+Each key is:
+
+- **Customer-locked** — it only works for the one customer it was issued for. Using it with a different `x-customer-id` returns `403`.
+- **Scoped** — it carries only the permissions you were granted (see below).
+- **Shown once** — store it in a secret manager. If it leaks, ask us to rotate it.
+
+## Scopes
+
+Endpoints require specific scopes. Your key only carries the scopes you were granted; calling an endpoint your key isn't scoped for returns `403`.
+
+| Scope | Grants access to |
+| --- | --- |
+| `public_api:leads:read` | `GET /api/agents/crm/leads` |
+| `public_api:leads:write` | `POST /api/agents/crm/leads`, `POST /api/agents/crm/leads/bulk` |
+| `public_api:webhooks:manage` | The `/api/agents/crm/lead-webhooks` endpoints |
+
+## Server-to-server only
+
+<Warning>
+These are secret-key endpoints. Call them from your **backend** only. Never expose the token to a browser, mobile app, or any client the end-user controls.
+</Warning>
+
+## Errors
+
+| Status | Meaning |
+| --- | --- |
+| `401` | Missing/invalid token, or missing `x-customer-id`. |
+| `403` | Key lacks the required scope, or is locked to a different customer. |
+
+All errors use the [standard error envelope](/errors).

@@ -1,0 +1,83 @@
+---
+title: "Pull leads"
+description: "List, search, filter, and paginate your leads."
+---
+
+```
+GET https://app.gomega.ai/api/agents/crm/leads
+```
+
+Requires the `public_api:leads:read` scope.
+
+## Query parameters
+
+| Param | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `status` | string | — | Filter by status (`active`, `won`, `lost`, `nurture`, `archived`). |
+| `stageId` | uuid | — | Filter by current pipeline stage id. |
+| `search` | string | — | Free-text on name / email / phone (phone-format-agnostic). |
+| `created_since` | ISO-8601 | — | Leads created at/after this time. |
+| `updated_since` | ISO-8601 | — | Leads updated at/after this time. |
+| `sort_by` | enum | `updated_at` | `created_at` \| `updated_at` \| `last_interaction_at`. |
+| `sort_dir` | enum | `asc` | `asc` \| `desc`. |
+| `lead_line` | enum | — | `buyer` \| `seller` (the reserved `lead_line` custom field). |
+| `include_custom_fields` | bool | `false` | Include a `custom_fields` object per lead. |
+| `cursor` | string | — | Opaque keyset cursor from a prior `next_cursor`. |
+| `limit` | int | `20` | 1–100. |
+| `offset` | int | `0` | Offset paging (back-compat; prefer `cursor`). |
+
+## Cursor pagination (recommended for polling)
+
+The response includes a `next_cursor`. To page forward, pass it back as `cursor` **with the same `sort_by` and `sort_dir`**. When there are no more pages, `next_cursor` is `null`.
+
+<Warning>
+A cursor is only valid for the sort it was created under. Replaying a cursor with a different `sort_by`/`sort_dir` returns `400`. Cursor paging is supported for `created_at` and `updated_at` sorts.
+</Warning>
+
+For reliable **incremental polling**, use `sort_by=updated_at&sort_dir=asc` and keep following `next_cursor`; on the next poll, resume from your last cursor or use `updated_since`.
+
+```bash
+# Page 1
+curl "https://app.gomega.ai/api/agents/crm/leads?sort_by=updated_at&sort_dir=asc&limit=100" \
+  -H "Authorization: Bearer $MEGA_TOKEN" -H "x-customer-id: $MEGA_CUSTOMER_ID"
+
+# Page 2 — pass next_cursor from page 1
+curl "https://app.gomega.ai/api/agents/crm/leads?sort_by=updated_at&sort_dir=asc&limit=100&cursor=eyJ..." \
+  -H "Authorization: Bearer $MEGA_TOKEN" -H "x-customer-id: $MEGA_CUSTOMER_ID"
+```
+
+## Response
+
+```json
+{
+  "leads": [
+    {
+      "id": "3f8c...",
+      "customer_id": "0000...",
+      "contact_name": "Jane Buyer",
+      "contact_phone": "+12065550123",
+      "contact_email": "jane@example.com",
+      "source_platform": "referral",
+      "source_type": "form",
+      "status": "active",
+      "score": null,
+      "qualified": null,
+      "current_stage": { "id": "a1..", "slug": "new", "name": "New", "color": "#22c55e" },
+      "owner": { "id": "o1..", "name": "Alex Agent", "role_name": "Closer" },
+      "last_interaction_at": null,
+      "interaction_count": 0,
+      "created_at": "2026-07-01T18:20:00.000Z",
+      "updated_at": "2026-07-01T18:20:00.000Z",
+      "custom_fields": { "lead_line": "buyer", "budget": "500000" }
+    }
+  ],
+  "total": 128,
+  "limit": 100,
+  "offset": 0,
+  "next_cursor": "eyJ..."
+}
+```
+
+- `total` is the count matching your filters (ignores cursor/offset).
+- `custom_fields` is present only when `include_custom_fields=true`.
+- Values in `custom_fields` are scalars (`string | number | boolean | null`).

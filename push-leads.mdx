@@ -1,0 +1,91 @@
+---
+title: "Push leads"
+description: "Create a single lead or bulk-import up to 500, safely with idempotency."
+---
+
+Both write endpoints require the `public_api:leads:write` scope.
+
+## Deduplication
+
+MEGA de-duplicates on **email** and **phone last-10 digits**. If an incoming lead matches an existing one, it is **merged** rather than duplicated. Each request must include at least one of `contact_name`, `contact_phone`, or `contact_email`.
+
+## Idempotency
+
+Send an `Idempotency-Key` header on any create. Replaying the same key returns the **original stored response** instead of creating again. Keys are scoped per customer + endpoint; reusing a key with a different body returns `409`.
+
+<Note>Use a fresh unique key per logical operation (e.g. a UUID), and reuse it only when retrying that same operation.</Note>
+
+## Single lead
+
+```
+POST https://app.gomega.ai/api/agents/crm/leads
+```
+
+```bash
+curl -X POST "https://app.gomega.ai/api/agents/crm/leads" \
+  -H "Authorization: Bearer $MEGA_TOKEN" \
+  -H "x-customer-id: $MEGA_CUSTOMER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 8f2c1e10-a001" \
+  -d '{
+    "contact_name": "Sam Seller",
+    "contact_phone": "(206) 555-0123",
+    "contact_email": "sam@example.com",
+    "source_platform": "referral",
+    "source_type": "form",
+    "stage_slug": "new",
+    "custom_fields": { "budget": "500000" }
+  }'
+```
+
+Returns `201` with `{ "lead": { ... } }` (same lead shape as the pull API).
+
+## Bulk import
+
+```
+POST https://app.gomega.ai/api/agents/crm/leads/bulk
+```
+
+Import **up to 500** leads per request (over the cap returns `400`). Uploaded leads are **inert** — they do not trigger downstream automation.
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `leads` | array | — | 1–500 rows. |
+| `on_duplicate` | enum | `update` | `update` merges, `skip` leaves the existing lead untouched. |
+| `dry_run` | bool | `false` | Validate + preview results without writing. |
+
+Per row you may set `row_ref` (your correlation id, echoed back), `owner_id` (must belong to your customer), `lead_line` (`buyer`/`seller`), `stage_slug`, and `custom_fields`.
+
+```bash
+curl -X POST "https://app.gomega.ai/api/agents/crm/leads/bulk" \
+  -H "Authorization: Bearer $MEGA_TOKEN" \
+  -H "x-customer-id: $MEGA_CUSTOMER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: import-2026-07-02-01" \
+  -d '{
+    "on_duplicate": "update",
+    "dry_run": false,
+    "leads": [
+      { "row_ref": "r1", "contact_email": "a@example.com", "lead_line": "buyer" },
+      { "row_ref": "r2", "contact_phone": "+12065550125", "custom_fields": { "budget": "750000", "made_up": "x" } }
+    ]
+  }'
+```
+
+```json Response
+{
+  "dry_run": false,
+  "summary": { "total": 2, "created": 1, "updated": 1, "skipped": 0, "failed": 0 },
+  "results": [
+    { "row_ref": "r1", "status": "created", "lead_id": "3f8c...", "matched_by": null, "errors": null },
+    { "row_ref": "r2", "status": "updated", "lead_id": "9a2b...", "matched_by": "phone", "errors": null, "ignored_custom_fields": ["made_up"] }
+  ],
+  "unknown_custom_fields": ["made_up"]
+}
+```
+
+- **Per-row `status`**: `created` | `updated` | `skipped` | `failed`. A failing row (e.g. a cross-tenant `owner_id` or a `stage_slug` not in your pipeline) is marked `failed` and never aborts the batch.
+- **`matched_by`**: `email` | `phone` | `null` — how a merge target was found.
+- **`ignored_custom_fields`** / top-level **`unknown_custom_fields`**: slugs that didn't match any custom-field definition and were ignored (not silently dropped).
+
+<Note>The bulk endpoint has a stricter per-minute rate limit than the other endpoints — see [Rate limits](/rate-limits). `dry_run` requests are not idempotency-cached.</Note>

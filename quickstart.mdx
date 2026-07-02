@@ -1,47 +1,65 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Make your first pull and push request in a couple of minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
-
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
+  <Step title="Get your credentials">
+    Ask your MEGA account manager for a Personal Access Token and your customer id. You'll get a token that starts with `mega_` and a customer UUID.
+  </Step>
+  <Step title="List your most recent leads">
     ```bash
-    npm install your-package
+    curl "https://app.gomega.ai/api/agents/crm/leads?limit=5&sort_by=updated_at&sort_dir=desc" \
+      -H "Authorization: Bearer $MEGA_TOKEN" \
+      -H "x-customer-id: $MEGA_CUSTOMER_ID"
+    ```
+
+    ```json Response
+    {
+      "leads": [
+        {
+          "id": "3f8c...",
+          "customer_id": "0000...",
+          "contact_name": "Jane Buyer",
+          "contact_phone": "+12065550123",
+          "contact_email": "jane@example.com",
+          "source_platform": "referral",
+          "source_type": "form",
+          "status": "active",
+          "score": null,
+          "qualified": null,
+          "current_stage": { "id": "a1..", "slug": "new", "name": "New", "color": "#22c55e" },
+          "owner": null,
+          "last_interaction_at": null,
+          "interaction_count": 0,
+          "created_at": "2026-07-01T18:20:00.000Z",
+          "updated_at": "2026-07-01T18:20:00.000Z"
+        }
+      ],
+      "total": 128,
+      "limit": 5,
+      "offset": 0,
+      "next_cursor": "eyJ..."
+    }
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
-
+  <Step title="Create a lead">
     ```bash
-    your-cli init
+    curl -X POST "https://app.gomega.ai/api/agents/crm/leads" \
+      -H "Authorization: Bearer $MEGA_TOKEN" \
+      -H "x-customer-id: $MEGA_CUSTOMER_ID" \
+      -H "Content-Type: application/json" \
+      -H "Idempotency-Key: 6b1e9d2a-0001" \
+      -d '{ "contact_name": "Sam Seller", "contact_email": "sam@example.com", "source_platform": "referral" }'
     ```
+
+    Returns `201` with the created (or merged) lead under `lead`.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
-
-    ```bash
-    your-cli start
-    ```
+  <Step title="Explore the reference">
+    Open the **API Reference** tab for the full schema, or read the [Pull](/pull-leads), [Push](/push-leads), and [Webhooks](/webhooks) guides.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<Note>
+Every successful response includes `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers. See [Rate limits](/rate-limits).
+</Note>

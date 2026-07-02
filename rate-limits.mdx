@@ -1,0 +1,47 @@
+---
+title: "Rate limits"
+description: "Per-key limits, the RateLimit headers, and handling 429s."
+---
+
+Rate limits apply **per API key** (and are isolated per customer). Internal MEGA traffic is exempt; only customer-facing keys are limited.
+
+## Default limits
+
+| Bucket | Endpoints | Default limit |
+| --- | --- | --- |
+| Default | `GET /leads`, `POST /leads`, and the `lead-webhooks` management routes | **60 / minute** and **1,000 / hour** |
+| Bulk | `POST /leads/bulk` | **10 / minute** |
+
+The bulk endpoint has its **own, independent** counter. Per-customer overrides are available on request — contact your account manager.
+
+## Response headers
+
+Every response (success and error) carries:
+
+| Header | Meaning |
+| --- | --- |
+| `RateLimit-Limit` | The limit for the reported window. |
+| `RateLimit-Remaining` | Requests remaining in that window. |
+| `RateLimit-Reset` | Seconds until the window fully refills. |
+
+## When you exceed a limit
+
+You get `429 Too Many Requests` with a **`Retry-After`** header (seconds) plus the `RateLimit-*` headers and the standard error body:
+
+```json
+{ "error": { "type": "rate_limit_error", "code": 429, "message": "Rate limit exceeded. Please retry later." } }
+```
+
+```
+HTTP/1.1 429 Too Many Requests
+RateLimit-Limit: 60
+RateLimit-Remaining: 0
+RateLimit-Reset: 42
+Retry-After: 30
+```
+
+## Best practices
+
+- **Back off on 429** using `Retry-After` (with jitter). Don't hammer.
+- **Poll incrementally** with cursor pagination + `updated_since` rather than re-scanning everything.
+- **Batch writes** with the bulk endpoint (up to 500/request) instead of many single creates.

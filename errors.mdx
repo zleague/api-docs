@@ -1,0 +1,39 @@
+---
+title: "Errors"
+description: "The consistent error envelope returned by every endpoint."
+---
+
+Every error uses the same JSON envelope, so you can branch on a stable machine-readable shape instead of parsing messages:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": 400,
+    "message": "At least one of contact_name, contact_phone, or contact_email is required"
+  }
+}
+```
+
+- **`type`** — the failure class (see table).
+- **`code`** — the HTTP status code (mirrors the response status).
+- **`message`** — a human-readable explanation.
+
+## Status codes & types
+
+| HTTP | `type` | When |
+| --- | --- | --- |
+| `400` | `invalid_request_error` | Malformed body, bad query params, or bulk over the 500-row cap. |
+| `401` | `authentication_error` | Missing/invalid token or missing `x-customer-id`. |
+| `403` | `authorization_error` | Key lacks the required scope, or is locked to a different customer. |
+| `404` | `not_found_error` | Resource (e.g. a webhook id) not found. |
+| `409` | `api_error` | `Idempotency-Key` reused with a different body, or a duplicate resource. |
+| `429` | `rate_limit_error` | [Rate limit](/rate-limits) exceeded — see `Retry-After`. |
+| `5xx` | `api_error` | Unexpected server error. Safe to retry with backoff. |
+
+## Handling tips
+
+- **Validation (`400`)** — fix the request; retrying unchanged won't help. Bulk requests still return `200` with per-row `failed` results for row-level problems; a `400` means the whole request was rejected.
+- **Auth (`401`/`403`)** — check the token, the `x-customer-id`, and that your key carries the [scope](/authentication#scopes) for the endpoint.
+- **Conflict (`409`)** — reuse an `Idempotency-Key` only for the identical retry; use a new key for a new operation.
+- **Rate limit (`429`)** — honor `Retry-After`.
