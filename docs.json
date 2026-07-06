@@ -3,6 +3,7 @@
   "theme": "mint",
   "name": "MEGA Developers",
   "description": "Developer documentation for the MEGA public CRM Lead API — pull leads, push leads, and receive lead webhooks.",
+  "favicon": "/favicon.png",
   "colors": {
     "primary": "#4F46E5",
     "light": "#818CF8",
