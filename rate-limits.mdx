@@ -9,7 +9,7 @@ Rate limits apply **per API key** (and are isolated per customer). Internal MEGA
 
 | Bucket | Endpoints | Default limit |
 | --- | --- | --- |
-| Default | `GET /leads`, `POST /leads`, and the `lead-webhooks` management routes | **60 / minute** and **1,000 / hour** |
+| Default | `GET /leads`, `POST /leads`, `POST /leads/:id/stage`, and the `lead-webhooks` management routes | **60 / minute** and **1,000 / hour** |
 | Bulk | `POST /leads/bulk` | **10 / minute** |
 
 The bulk endpoint has its **own, independent** counter. Per-customer overrides are available on request — contact your account manager.

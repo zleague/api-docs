@@ -1,13 +1,17 @@
 ---
 title: "Push leads"
-description: "Create a single lead or bulk-import up to 500, safely with idempotency."
+description: "Create a single lead, bulk-import up to 500, or move a lead to a pipeline stage."
 ---
 
-Both write endpoints require the `public_api:leads:write` scope.
+Write endpoints require the `public_api:leads:write` scope.
 
 ## Deduplication
 
-MEGA de-duplicates on **email** and **phone last-10 digits**. If an incoming lead matches an existing one, it is **merged** rather than duplicated. Each request must include at least one of `contact_name`, `contact_phone`, or `contact_email`.
+MEGA de-duplicates on **email** and **phone last-10 digits**. If an incoming lead matches an existing one, it is **merged** rather than duplicated. Each create request must include at least one of `contact_name`, `contact_phone`, or `contact_email`.
+
+<Warning>
+A merge does **not** advance the existing lead's stage. Sending `stage_slug` on `POST /leads` only applies on insert (or when the matched lead has no stage). To convert an existing lead — for example after a purchase — call [Move a lead's stage](#move-a-leads-stage).
+</Warning>
 
 ## Idempotency
 
@@ -89,3 +93,43 @@ curl -X POST "https://app.gomega.ai/api/agents/crm/leads/bulk" \
 - **`ignored_custom_fields`** / top-level **`unknown_custom_fields`**: slugs that didn't match any custom-field definition and were ignored (not silently dropped).
 
 <Note>The bulk endpoint has a stricter per-minute rate limit than the other endpoints — see [Rate limits](/rate-limits). `dry_run` requests are not idempotency-cached.</Note>
+
+## Move a lead's stage
+
+```
+POST https://app.gomega.ai/api/agents/crm/leads/{id}/stage
+```
+
+Moves a lead into one of **your customer's** pipeline stages. The lead `{id}` must belong to the customer in `x-customer-id`; a mismatch returns `404`.
+
+Use this after a conversion (checkout, paid invoice, signed contract) when the contact was already minted as a lead. Create-or-merge on `POST /leads` will not move them.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `stage_slug` | string | yes | Must match a stage in the customer's active pipeline. |
+| `reason` | string | no | Optional note stored on the transition. |
+
+```bash
+curl -X POST "https://app.gomega.ai/api/agents/crm/leads/$LEAD_ID/stage" \
+  -H "Authorization: Bearer $MEGA_TOKEN" \
+  -H "x-customer-id: $MEGA_CUSTOMER_ID" \
+  -H "Content-Type: application/json" \
+  -d '{ "stage_slug": "won", "reason": "Stripe checkout completed" }'
+```
+
+```json Response
+{ "success": true }
+```
+
+If the lead is already in that stage, the call is a **no-op** and still succeeds:
+
+```json
+{ "success": true, "already_in_stage": true }
+```
+
+The no-op is decided atomically (row lock + compare-and-set), so overlapping retries cannot duplicate the transition. An `Idempotency-Key` header is **not** honored on this endpoint — extra headers are ignored. Retries are safe because of the atomic no-op.
+
+| Status | When |
+| --- | --- |
+| `400` | Invalid lead id, missing `stage_slug`, or unknown `stage_slug` (`Stage not found: …`). |
+| `404` | Lead does not exist, or does not belong to `x-customer-id`. |

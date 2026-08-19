@@ -3,6 +3,14 @@ title: "Changelog"
 description: "Notable changes to the MEGA public CRM Lead API."
 ---
 
+<Update label="2026-08" description="Move a lead's stage">
+  Restricted keys with `public_api:leads:write` can now move an existing lead to a pipeline stage.
+
+  - **Stage move** — `POST /api/agents/crm/leads/:id/stage` with `{ "stage_slug": "won", "reason": "optional" }`. Returns `{ "success": true }` or `{ "success": true, "already_in_stage": true }` when the lead is already there.
+  - **Create still does not convert** — `POST /leads` merges on email/phone and does **not** advance an existing lead's stage. Call the stage endpoint after a purchase or other conversion.
+  - **Retries are safe without `Idempotency-Key`** — that header is honored on create/bulk only. Stage uses an atomic no-op instead.
+</Update>
+
 <Update label="2026-07" description="Initial public release">
   The first public release of the CRM Lead API.
 

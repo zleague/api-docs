@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "MEGA Public CRM Lead API",
-    "version": "1.0.0",
-    "description": "Server-to-server API to pull leads, push leads (single + bulk), and manage lead webhooks for your MEGA CRM. Authenticate with an admin-issued Personal Access Token (`Authorization: Bearer mega_...`) plus the `x-customer-id` header. These are secret-key endpoints — call them from your backend, never from a browser."
+    "version": "1.1.0",
+    "description": "Server-to-server API to pull leads, push leads (single + bulk), move a lead to a pipeline stage, and manage lead webhooks for your MEGA CRM. Authenticate with an admin-issued Personal Access Token (`Authorization: Bearer mega_...`) plus the `x-customer-id` header. These are secret-key endpoints — call them from your backend, never from a browser."
   },
   "servers": [{ "url": "https://app.gomega.ai", "description": "Production" }],
   "security": [{ "bearerAuth": [] }],
@@ -44,7 +44,7 @@
       "post": {
         "operationId": "createLead",
         "summary": "Create a single lead",
-        "description": "Creates one lead (or merges into an existing lead by email / phone-last-10). Requires the `public_api:leads:write` scope. Send an `Idempotency-Key` so a retry returns the original result instead of double-creating.",
+        "description": "Creates one lead (or merges into an existing lead by email / phone-last-10). Requires the `public_api:leads:write` scope. Send an `Idempotency-Key` so a retry returns the original result instead of double-creating. Merging does **not** move an existing lead's stage — use `POST /api/agents/crm/leads/{id}/stage` after a conversion.",
         "tags": ["Leads"],
         "parameters": [
           { "$ref": "#/components/parameters/CustomerId" },
@@ -86,6 +86,31 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "409": { "$ref": "#/components/responses/Conflict" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/agents/crm/leads/{id}/stage": {
+      "post": {
+        "operationId": "moveLeadStage",
+        "summary": "Move a lead's stage",
+        "description": "Moves an existing lead into a stage in the customer's active pipeline. Requires the `public_api:leads:write` scope. The lead must belong to `x-customer-id` (otherwise `404`). Use this after a conversion: `POST /leads` merges on email/phone and does not advance an existing lead's stage. An `Idempotency-Key` header is not honored here; overlapping retries are safe because a no-op (lead already in `stage_slug`) is decided atomically and returns `{ success: true, already_in_stage: true }`.",
+        "tags": ["Leads"],
+        "parameters": [
+          { "$ref": "#/components/parameters/CustomerId" },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Lead id. Must belong to the customer in `x-customer-id`." }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LeadStageMoveRequest" } } } },
+        "responses": {
+          "200": {
+            "description": "Stage moved, or the lead was already in that stage.",
+            "headers": { "RateLimit-Limit": { "$ref": "#/components/headers/RateLimitLimit" }, "RateLimit-Remaining": { "$ref": "#/components/headers/RateLimitRemaining" }, "RateLimit-Reset": { "$ref": "#/components/headers/RateLimitReset" } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LeadStageMoveResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
           "429": { "$ref": "#/components/responses/RateLimited" }
         }
       }
@@ -286,9 +311,25 @@
           "contact_email": { "type": "string", "format": "email" },
           "source_platform": { "$ref": "#/components/schemas/SourcePlatform" },
           "source_type": { "$ref": "#/components/schemas/SourceType" },
-          "stage_slug": { "type": "string" },
+          "stage_slug": { "type": "string", "description": "Applied on insert, or when the matched lead has no current stage. A merge into a lead that already has a stage leaves that stage unchanged." },
           "custom_fields": { "$ref": "#/components/schemas/CustomFieldMap" }
         }
+      },
+      "LeadStageMoveRequest": {
+        "type": "object",
+        "properties": {
+          "stage_slug": { "type": "string", "minLength": 1, "description": "Slug of a stage in the customer's active pipeline (e.g. `won`)." },
+          "reason": { "type": "string", "description": "Optional note stored on the transition." }
+        },
+        "required": ["stage_slug"]
+      },
+      "LeadStageMoveResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "already_in_stage": { "type": "boolean", "description": "Present and true when the lead was already in `stage_slug`; no transition is recorded." }
+        },
+        "required": ["success"]
       },
       "BulkLeadRow": {
         "type": "object",

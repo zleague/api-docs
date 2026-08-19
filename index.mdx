@@ -1,12 +1,12 @@
 ---
 title: "Overview"
-description: "The MEGA public CRM Lead API — pull leads, push leads, and receive lead webhooks."
+description: "The MEGA public CRM Lead API — pull leads, push leads, move stages, and receive lead webhooks."
 ---
 
 The **MEGA public CRM Lead API** lets your systems integrate with your MEGA CRM:
 
 - **Pull** — list and search your leads, with cursor pagination for incremental polling.
-- **Push** — create leads one at a time, or import up to 500 at once.
+- **Push** — create leads one at a time, import up to 500 at once, or move a lead to a pipeline stage (for example after a purchase).
 - **Webhooks** — get notified in real time when a new lead is created, with HMAC-signed deliveries.
 
 ## Base URL
@@ -38,7 +38,7 @@ See [Authentication](/authentication) for how to get a key and which scopes each
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/quickstart">Make your first request in a couple of minutes.</Card>
   <Card title="Pull leads" icon="download" href="/pull-leads">List, search, filter, and paginate leads.</Card>
-  <Card title="Push leads" icon="upload" href="/push-leads">Create single leads or bulk-import them.</Card>
+  <Card title="Push leads" icon="upload" href="/push-leads">Create, bulk-import, or move a lead's stage.</Card>
   <Card title="Webhooks" icon="webhook" href="/webhooks">Receive & verify `lead.created` events.</Card>
   <Card title="Rate limits" icon="gauge" href="/rate-limits">Limits, headers, and 429 handling.</Card>
   <Card title="Errors" icon="triangle-exclamation" href="/errors">The consistent error envelope.</Card>

@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "MEGA Developers",
-  "description": "Developer documentation for the MEGA public CRM Lead API — pull leads, push leads, and receive lead webhooks.",
+  "description": "Developer documentation for the MEGA public CRM Lead API — pull leads, push leads, move lead stages, and receive lead webhooks.",
   "favicon": "/favicon.png",
   "colors": {
     "primary": "#4F46E5",
