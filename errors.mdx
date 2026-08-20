@@ -26,7 +26,7 @@ Every error uses the same JSON envelope, so you can branch on a stable machine-r
 | `400` | `invalid_request_error` | Malformed body, bad query params, or bulk over the 500-row cap. |
 | `401` | `authentication_error` | Missing/invalid token or missing `x-customer-id`. |
 | `403` | `authorization_error` | Key lacks the required scope, or is locked to a different customer. |
-| `404` | `not_found_error` | Resource (e.g. a webhook id) not found. |
+| `404` | `not_found_error` | Resource not found (webhook id, or a lead id that is missing / not in this customer). |
 | `409` | `api_error` | `Idempotency-Key` reused with a different body, or a duplicate resource. |
 | `429` | `rate_limit_error` | [Rate limit](/rate-limits) exceeded — see `Retry-After`. |
 | `5xx` | `api_error` | Unexpected server error. Safe to retry with backoff. |

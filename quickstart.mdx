@@ -53,7 +53,7 @@ description: "Make your first pull and push request in a couple of minutes."
       -d '{ "contact_name": "Sam Seller", "contact_email": "sam@example.com", "source_platform": "referral" }'
     ```
 
-    Returns `201` with the created (or merged) lead under `lead`.
+    Returns `201` with the created (or merged) lead under `lead`. Merging an existing contact does **not** change their stage — use [Move a lead's stage](/push-leads#move-a-leads-stage) after a conversion.
   </Step>
   <Step title="Explore the reference">
     Open the **API Reference** tab for the full schema, or read the [Pull](/pull-leads), [Push](/push-leads), and [Webhooks](/webhooks) guides.
